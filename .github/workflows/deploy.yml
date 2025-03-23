@@ -1,0 +1,69 @@
+name: Build and Deploy to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: 
+
+env:
+  AWS_REGION: ca-central-1
+  BACKEND_REPO: backend-app
+  FRONTEND_REPO: frontend-app
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    ####### Backend Build & Push ########
+    - name: Build backend Docker image
+      run: |
+        BACKEND_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.BACKEND_REPO }}:latest"
+        echo "BACKEND_IMAGE=$BACKEND_IMAGE" >> $GITHUB_ENV
+        docker build -t $BACKEND_IMAGE ./backend
+
+    - name: Push backend Docker image to ECR
+      run: |
+        docker push $BACKEND_IMAGE
+
+    ####### Frontend Build & Push ########
+    - name: Build frontend Docker image
+      run: |
+        FRONTEND_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.FRONTEND_REPO }}:latest"
+        echo "FRONTEND_IMAGE=$FRONTEND_IMAGE" >> $GITHUB_ENV
+        docker build -t $FRONTEND_IMAGE ./frontend
+
+    - name: Push frontend Docker image to ECR
+      run: |
+        docker push $FRONTEND_IMAGE
+
+    # Update kubeconfig to access EKS cluster
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+    ####### Deploy to EKS ########
+    - name: Deploy backend to EKS
+      run: |
+        kubectl set image deployment/backend-deployment backend-container=$BACKEND_IMAGE
+        kubectl rollout status deployment/backend-deployment
+
+    - name: Deploy frontend to EKS
+      run: |
+        kubectl set image deployment/frontend-deployment frontend-container=$FRONTEND_IMAGE
+        kubectl rollout status deployment/frontend-deployment
