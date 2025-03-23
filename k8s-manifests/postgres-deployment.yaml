@@ -2,52 +2,58 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
+  labels:
+    app: postgres
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app: postgres  # ✅ Good! Matches template labels
+      app: postgres
   template:
     metadata:
       labels:
-        app: postgres  # ✅ Good! Consistent labeling
+        app: postgres
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
       - name: postgres
-        image: postgres:14  # ✅ Fine! You could specify alpine (smaller image): postgres:14-alpine
+        image: postgres:14-alpine
         ports:
         - containerPort: 5432
         env:
         - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret   # ✅ Great! You’re using Secrets for security!
-              key: username
+          value: postgres        # ✅ simple testing user
         - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: password
+          value: password        # ✅ simple testing password
         - name: POSTGRES_DB
-          value: trojaidb  # ✅ Make sure your backend DATABASE_URL points to this db name
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data  # ✅ Required for data persistence
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-pvc  # ✅ Should be created separately
----
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-service
-spec:
-  selector:
-    app: postgres
-  ports:
-    - protocol: TCP
-      port: 5432
-      targetPort: 5432
-  type: ClusterIP  # ✅ Perfect for internal use by backend
+          value: trojaidb
+        # ✅ Startup probe - gives Postgres time to initialize before other probes run
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 10  # Wait before starting checks
+          periodSeconds: 5         # Check every 5s
+          failureThreshold: 30     # Try for 30 * 5s = 150 seconds before failing
+        # ✅ Readiness probe - ensures service only routes when Postgres is ready
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 5
+        # ✅ Liveness probe - ensures Postgres is alive and responsive
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"

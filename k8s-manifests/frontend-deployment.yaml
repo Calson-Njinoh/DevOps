@@ -1,7 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend
+  name: frontend-deployment
+  labels:
+    app: frontend
 spec:
   replicas: 1
   selector:
@@ -14,7 +16,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: your-dockerhub-username/trojai-frontend:latest
+        image: 891377304437.dkr.ecr.ca-central-1.amazonaws.com/frontend-app:latest
         ports:
         - containerPort: 3000
         env:
@@ -26,11 +28,27 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  labels:
+    app: frontend
 spec:
   selector:
     app: frontend
@@ -38,4 +56,4 @@ spec:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-  type: NodePort
+  type: LoadBalancer  

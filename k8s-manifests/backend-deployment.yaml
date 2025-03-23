@@ -1,7 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: backend-deployment
+  labels:
+    app: backend
 spec:
   replicas: 1
   selector:
@@ -14,7 +16,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: your-dockerhub-username/trojai-backend:latest
+        image: 891377304437.dkr.ecr.ca-central-1.amazonaws.com/backend-app:latest
         ports:
         - containerPort: 8000
         env:
@@ -26,6 +28,19 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
