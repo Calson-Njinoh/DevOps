@@ -1,10 +1,16 @@
 import React from 'react';
 import axios from 'axios';
 
-const ModelList = ({ models, onRescanSuccess }) => {
+const ModelList = ({ models, onRescanSuccess, backendUrl }) => {
+
   const handleRescan = async (id) => {
+    if (!backendUrl) {
+      alert('Backend URL not available!');
+      return;
+    }
+
     try {
-      await axios.post(`http://localhost:8000/scan/${id}`);
+      await axios.post(`${backendUrl}/scan/${id}`);
       if (onRescanSuccess) {
         onRescanSuccess(); 
       }

@@ -5,10 +5,27 @@ import axios from 'axios';
 
 const App = () => {
   const [models, setModels] = useState([]);
+  const [backendUrl, setBackendUrl] = useState('');
+
+  // Load backend URL from runtime config
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/config.json');
+        const config = await res.json();
+        setBackendUrl(config.REACT_APP_BACKEND_URL);
+      } catch (err) {
+        console.error('Failed to load config.json', err);
+      }
+    };
+
+    loadConfig();
+  }, []);
 
   const fetchModels = async () => {
+    if (!backendUrl) return; // Wait until backendUrl is loaded
     try {
-      const res = await axios.get('http://localhost:8000/models');
+      const res = await axios.get(`${backendUrl}/models`);
       setModels(res.data);
     } catch (err) {
       console.error('Error fetching models:', err);
@@ -16,8 +33,10 @@ const App = () => {
   };
 
   useEffect(() => {
-    fetchModels();
-  }, []);
+    if (backendUrl) {
+      fetchModels();
+    }
+  }, [backendUrl]);
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-800 flex flex-col items-center">
@@ -30,12 +49,12 @@ const App = () => {
       <main className="w-full max-w-5xl mt-10 px-4 space-y-8">
         {/* Upload Form */}
         <section className="bg-white p-6 rounded-lg shadow-md">
-          <UploadForm onUploadSuccess={fetchModels} />
+          <UploadForm onUploadSuccess={fetchModels} backendUrl={backendUrl} />
         </section>
 
         {/* Uploaded Models Table */}
         <section className="bg-white p-6 rounded-lg shadow-md">
-          <ModelList models={models} onRescanSuccess={fetchModels} />
+          <ModelList models={models} onRescanSuccess={fetchModels} backendUrl={backendUrl} />
         </section>
       </main>
 

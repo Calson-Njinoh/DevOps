@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const UploadForm = ({ onUploadSuccess }) => {
+const UploadForm = ({ onUploadSuccess, backendUrl }) => {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -15,31 +15,29 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
+    if (!backendUrl) {
+      alert("Backend URL not available!");
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file); 
 
     try {
       setIsUploading(true);
 
-      
-      const response = await axios.post('http://localhost:8000/upload', formData, {
+      const response = await axios.post(`${backendUrl}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
 
-      
       console.log('Upload response:', response);
 
-      /**
-       * We are expecting a 200 response AND a JSON payload like:
-       * { id: int, filename: str, status: str, upload_time: str }
-       */
       if (response.status === 200 && response.data) {
         alert('File uploaded successfully!');
-        setFile(null); // Reset file input
+        setFile(null);
 
-        // Refresh models list
         if (onUploadSuccess) {
           onUploadSuccess();
         }
