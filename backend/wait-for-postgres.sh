@@ -1,5 +1,7 @@
 #!/bin/sh
 
+#this script waits for the Postgres container to start before it connects to the host port 
+
 set -e
 
 HOST=${POSTGRES_HOST:-postgres-service}
